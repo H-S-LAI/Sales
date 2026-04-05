@@ -252,7 +252,7 @@ st.title("🌿 檳榔銷售統計自動化系統")
 # ── 上傳區 ──
 c1, c2 = st.columns(2)
 with c1:
-    f_raw = st.file_uploader("① 上傳當日 Raw_data.xlsx", type=['xlsx'])
+    f_raw = st.file_uploader("① 上傳從檳榔管理系統匯出之原始檔", type=['xlsx'])
 with c2:
     f_cum = st.file_uploader(
         "② 上傳現有累計檔（.xls 或 .xlsx，用於讀取前日粒換算）",
