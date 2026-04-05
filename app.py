@@ -157,15 +157,16 @@ def read_prev_rates(file_bytes, fname, target_date):
 
 def build_sheet(ws, sales, rates, d):
     # 欄寬
-    widths = [10, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
-    for ci, w in enumerate(widths, 1):
-        ws.column_dimensions[chr(64 + ci)].width = w
+    # 欄寬：完全對應原始 .xls（A=9.62，B~O=8.5）
+    ws.column_dimensions["A"].width = 9.62
+    for ci in range(2, 16):
+        ws.column_dimensions[chr(64 + ci)].width = 8.5
 
     # 第 1 列：標題
     tw = d.year - 1911
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=15)
     sc(ws, 1, 1, f"{tw}.{d.month}.{d.day}檳榔銷售統計", F_T, AL, None)
-    ws.row_dimensions[1].height = 22
+    ws.row_dimensions[1].height = 20.2
 
     HDR = ['店名','品名','售量','品名','售量','品名','售量','品名','售量',
            '品名','售量','品名','售量','品名','售量']
@@ -173,7 +174,7 @@ def build_sheet(ws, sales, rates, d):
     def write_header(r):
         for ci, h in enumerate(HDR, 1):
             sc(ws, r, ci, h, F(12), AC, BRD, FHD)
-        ws.row_dimensions[r].height = 18
+        ws.row_dimensions[r].height = 19.5
 
     write_header(2)
 
@@ -183,7 +184,7 @@ def build_sheet(ws, sales, rates, d):
 
         # ── 各店資料列 ──
         for store in stores:
-            ws.row_dimensions[r].height = 18
+            ws.row_dimensions[r].height = 19.5
             sd = sales.get(store, {})
             sc(ws, r, 1, store, F_B)
             # 先把全部 14 欄填空（帶框線）
@@ -200,7 +201,7 @@ def build_sheet(ws, sales, rates, d):
         tots = {it: sum(sales.get(s, {}).get(it, 0) for s in stores) for it in items}
 
         # ── 銷售包數 列（紅字合計 / 綠字換算） ──
-        ws.row_dimensions[r].height = 18
+        ws.row_dimensions[r].height = 19.5
         sc(ws, r, 1, '銷售包數', F_R)
         for ci in range(2, 16):
             sc(ws, r, ci, f=F_R)
@@ -211,7 +212,7 @@ def build_sheet(ws, sales, rates, d):
         r += 1
 
         # ── 銷售粒數 列（藍字：包數 × 換算） ──
-        ws.row_dimensions[r].height = 18
+        ws.row_dimensions[r].height = 19.5
         sc(ws, r, 1, '銷售粒數', F_U)
         for ci in range(2, 16):
             sc(ws, r, ci, f=F_U)
@@ -229,7 +230,7 @@ def build_sheet(ws, sales, rates, d):
     r, t3 = write_group(G3_STORES, G3_ITEMS, r,  'g3')
 
     # ── 第 32 列：總合計 ──
-    ws.row_dimensions[r].height = 18
+    ws.row_dimensions[r].height = 19.5
     all_s   = G1_STORES + G2_STORES + G3_STORES
     tot_pkg = sum(sum(sales.get(s, {}).values()) for s in all_s)
     sc(ws, r, 1, tot_pkg, F_R)                             # 🔴 全部包數
