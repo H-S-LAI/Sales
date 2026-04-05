@@ -262,9 +262,9 @@ with c2:
 st.info("📌 **注意**：若上傳 **.xls** 累計檔，程式只會讀取前日粒換算；"
         "舊有工作表將**不**保留在新下載的 .xlsx 中。建議先在 Excel 另存為 .xlsx 再上傳。", icon="ℹ️")
 
-# ── 日期選擇 ──
-default_d   = (datetime.now() + timedelta(days=1)).date()
-rd          = st.date_input("📅 報表日期（預設今天 +1，可修改）", value=default_d)
+# ── 日期選擇（預設昨天）──
+default_d   = (datetime.now() - timedelta(days=1)).date()
+rd          = st.date_input("📅 報表日期（預設昨天，可修改）", value=default_d)
 report_date = datetime(rd.year, rd.month, rd.day)
 
 # ── 讀入售量 ──
@@ -279,28 +279,45 @@ cum_bytes = f_cum.getvalue() if f_cum else None
 cum_name  = f_cum.name      if f_cum else ""
 rates, rate_msg = read_prev_rates(cum_bytes, cum_name, report_date)
 
-# ── 粒換算設定 UI ──
+# ── 粒換算設定 UI（表格形式）──
 st.markdown("---")
 st.markdown(f"### 🟢 粒換算設定　{rate_msg}")
-st.caption("每個品名「一包等於幾粒」。自動從前日帶入，有需要可手動調整。")
+st.caption("每個品名「一包等於幾粒」，自動從前日帶入，有需要可手動調整。")
 
-rc1, rc2, rc3 = st.columns(3)
+# 欄位順序：店區標題 + 7 個品項
+# 特殊欄（col index 2）：日紅=空、台中=多菁、彰化=普通
+UI_COLS  = ['特幼', 'special', '幼大口', '多粒', '多大口', '幼菁', '雙子星']
+COL_HDRS = ['特幼', '多菁/普通', '幼大口', '多粒', '多大口', '幼菁', '雙子星']
+SPECIALS = {'g1': None, 'g2': '多菁', 'g3': '普通'}
+GROUPS   = [('g1', '日紅'), ('g2', '台中'), ('g3', '彰化')]
 
-def rate_ui(col, gk, items, label):
-    with col:
-        st.markdown(f"**{label}**")
-        for it in items:
-            rates[gk][it] = st.number_input(
-                it,
-                min_value=0, max_value=99,
-                value=int(rates[gk].get(it, 0)),
-                key=f"rate_{gk}_{it}",
-                step=1
+col_w = [1.2, 1, 1.2, 1, 1, 1.2, 1, 1.2]
+
+# 表頭列
+hdr = st.columns(col_w)
+hdr[0].markdown("**店區**")
+for i, h in enumerate(COL_HDRS, 1):
+    hdr[i].markdown(f"**{h}**")
+
+st.markdown('<hr style="margin:4px 0">', unsafe_allow_html=True)
+
+# 各群組資料列
+for gk, label in GROUPS:
+    row = st.columns(col_w)
+    row[0].markdown(f"**{label}**")
+    sp = SPECIALS[gk]
+    for i, item_key in enumerate(UI_COLS, 1):
+        actual = sp if item_key == 'special' else item_key
+        if actual is None:
+            row[i].markdown("<div style='text-align:center;color:#aaa;padding-top:8px'>—</div>",
+                            unsafe_allow_html=True)
+        else:
+            rates[gk][actual] = row[i].number_input(
+                "x", min_value=0, max_value=99,
+                value=int(rates[gk].get(actual, 0)),
+                key=f"rate_{gk}_{actual}",
+                step=1, label_visibility="collapsed"
             )
-
-rate_ui(rc1, 'g1', G1_ITEMS, "📍 日紅（彰草 / 金美 / 日華）")
-rate_ui(rc2, 'g2', G2_ITEMS, "📍 台中（北屯 / 向上 / 五權 / 太平 / 大雅 / 漢口）")
-rate_ui(rc3, 'g3', G3_ITEMS, "📍 彰化其他（金馬 / 正德 / 大埔 / 三民…共 13 店）")
 
 # ── 生成按鈕 ──
 st.markdown("---")
@@ -317,20 +334,20 @@ if st.button("🚀 生成報表", type="primary", disabled=(not f_raw or bool(er
         if 'Sheet' in wb.sheetnames:
             del wb['Sheet']
 
-    # 新增工作表（若已存在則覆蓋）
+    # 新增工作表（position=0 → 放最前面；若已存在則先刪除）
     sn = f"{report_date.month}-{report_date.day}"
     if sn in wb.sheetnames:
         del wb[sn]
-    ws = wb.create_sheet(sn)
+    ws = wb.create_sheet(sn, 0)
 
     build_sheet(ws, sales, rates, report_date)
 
     out = io.BytesIO()
     wb.save(out)
 
-    tw   = report_date.year - 1911
+    tw    = report_date.year - 1911
     fname = f"檳榔銷售統計_{tw}年{report_date.month}月{report_date.day}日.xlsx"
-    st.success(f"✅ 工作表「{sn}」生成完成！")
+    st.success(f"✅ 工作表「{sn}」生成完成，已放在最前面！")
     st.download_button(
         "💾 下載 Excel",
         data=out.getvalue(),
