@@ -259,9 +259,6 @@ with c2:
         type=['xls', 'xlsx']
     )
 
-st.info("📌 **注意**：若上傳 **.xls** 累計檔，程式只會讀取前日粒換算；"
-        "舊有工作表將**不**保留在新下載的 .xlsx 中。建議先在 Excel 另存為 .xlsx 再上傳。", icon="ℹ️")
-
 # ── 日期選擇（預設昨天）──
 default_d   = (datetime.now() - timedelta(days=1)).date()
 rd          = st.date_input("📅 報表日期（預設昨天，可修改）", value=default_d)
@@ -284,36 +281,36 @@ st.markdown("---")
 st.markdown(f"### 🟢 粒換算設定　{rate_msg}")
 st.caption("每個品名「一包等於幾粒」，自動從前日帶入，有需要可手動調整。")
 
-# 欄位順序：店區標題 + 7 個品項
-# 特殊欄（col index 2）：日紅=空、台中=多菁、彰化=普通
-UI_COLS  = ['特幼', 'special', '幼大口', '多粒', '多大口', '幼菁', '雙子星']
-COL_HDRS = ['特幼', '多菁/普通', '幼大口', '多粒', '多大口', '幼菁', '雙子星']
-SPECIALS = {'g1': None, 'g2': '多菁', 'g3': '普通'}
-GROUPS   = [('g1', '日紅'), ('g2', '台中'), ('g3', '彰化')]
+# 欄位：店區 | 特幼 | 多菁 | 普通 | 幼大口 | 多粒 | 多大口 | 幼菁 | 雙子星
+# 日紅：多菁=— 普通=—  台中：普通=—  彰化：多菁=—
+COL_HDRS  = ['店區', '特幼', '多菁', '普通', '幼大口', '多粒', '多大口', '幼菁', '雙子星']
+ITEM_ROWS = {
+    'g1': {'特幼':'特幼', '多菁':None,   '普通':None,   '幼大口':'幼大口', '多粒':'多粒', '多大口':'多大口', '幼菁':'幼菁', '雙子星':'雙子星'},
+    'g2': {'特幼':'特幼', '多菁':'多菁', '普通':None,   '幼大口':'幼大口', '多粒':'多粒', '多大口':'多大口', '幼菁':'幼菁', '雙子星':'雙子星'},
+    'g3': {'特幼':'特幼', '多菁':None,   '普通':'普通', '幼大口':'幼大口', '多粒':'多粒', '多大口':'多大口', '幼菁':'幼菁', '雙子星':'雙子星'},
+}
+GROUPS = [('g1', '日紅'), ('g2', '台中'), ('g3', '彰化')]
+col_w  = [0.9, 1, 1, 1, 1, 1, 1, 1, 1]
 
-col_w = [1.2, 1, 1.2, 1, 1, 1.2, 1, 1.2]
-
-# 表頭列
+# 表頭
 hdr = st.columns(col_w)
-hdr[0].markdown("**店區**")
-for i, h in enumerate(COL_HDRS, 1):
+for i, h in enumerate(COL_HDRS):
     hdr[i].markdown(f"**{h}**")
+st.markdown('<hr style="margin:2px 0 6px 0">', unsafe_allow_html=True)
 
-st.markdown('<hr style="margin:4px 0">', unsafe_allow_html=True)
-
-# 各群組資料列
+# 資料列
 for gk, label in GROUPS:
-    row = st.columns(col_w)
-    row[0].markdown(f"**{label}**")
-    sp = SPECIALS[gk]
-    for i, item_key in enumerate(UI_COLS, 1):
-        actual = sp if item_key == 'special' else item_key
+    row   = st.columns(col_w)
+    items = ITEM_ROWS[gk]
+    row[0].markdown(f"<div style='padding-top:10px'><b>{label}</b></div>", unsafe_allow_html=True)
+    for ci, key in enumerate(COL_HDRS[1:], 1):
+        actual = items[key]
         if actual is None:
-            row[i].markdown("<div style='text-align:center;color:#aaa;padding-top:8px'>—</div>",
-                            unsafe_allow_html=True)
+            row[ci].markdown("<div style='text-align:center;color:#bbb;padding-top:10px;font-size:18px'>—</div>",
+                             unsafe_allow_html=True)
         else:
-            rates[gk][actual] = row[i].number_input(
-                "x", min_value=0, max_value=99,
+            rates[gk][actual] = row[ci].number_input(
+                key, min_value=0, max_value=99,
                 value=int(rates[gk].get(actual, 0)),
                 key=f"rate_{gk}_{actual}",
                 step=1, label_visibility="collapsed"
